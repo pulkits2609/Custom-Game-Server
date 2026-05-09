@@ -1,57 +1,104 @@
-# Minimum CMake version required
+# --------------------------------------------------
+# Minimum CMake Version
+# --------------------------------------------------
+
 cmake_minimum_required(VERSION 3.20)
 
-# Project name
+# --------------------------------------------------
+# Project Name
+# --------------------------------------------------
+
 project(CustomGameServer)
+
+# --------------------------------------------------
+# C++ Standard
+# --------------------------------------------------
+
+# Use C++17
+set(CMAKE_CXX_STANDARD 17)
+
+# Force compiler to use required standard
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# --------------------------------------------------
+# GLOBAL DEFINITIONS
+# --------------------------------------------------
+
+# Disable Boost automatic library linking
+# (important for MSVC)
 add_definitions(
-    -D_WIN32_WINNT=0x0A00
     -DBOOST_ALL_NO_LIB
 )
 
-# Use modern C++ standard
-set(CMAKE_CXX_STANDARD 17)
+# Windows-specific definitions
+if(WIN32)
 
-# Require C++17
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    # Target Windows 10 APIs
+    add_definitions(
+        -D_WIN32_WINNT=0x0A00
+    )
 
-# ---------------------------------------------
-# BOOST CONFIGURATION
-# ---------------------------------------------
+endif()
 
-# Path where Boost is installed
+# --------------------------------------------------
+# BOOST INCLUDE PATH
+# --------------------------------------------------
+
+# Root Boost directory
 set(BOOST_ROOT "C:/Boost")
 
-# Use static Boost libraries
-set(Boost_USE_STATIC_LIBS ON)
-
-# ---------------------------------------------
-# INCLUDE DIRECTORIES
-# ---------------------------------------------
-
-# Include project headers + Boost headers
+# Include directories
 include_directories(
+
     include
+
     C:/Boost/include/boost-1_90
 )
 
-# ---------------------------------------------
+# --------------------------------------------------
 # SOURCE FILES
-# ---------------------------------------------
+# --------------------------------------------------
 
 set(SOURCES
 
+    # Entry Point
     src/main.cpp
 
+    # Boost JSON Implementation Unit
     src/boost_json.cpp
+
+    # Network
     src/network/server.cpp
+
+    # Lobby System
     src/lobby/lobby.cpp
     src/lobby/lobbyManager.cpp
 
+    # Routes
     src/routes/lobbyRoutes.cpp
 )
 
-# ---------------------------------------------
+# --------------------------------------------------
 # CREATE EXECUTABLE
-# ---------------------------------------------
+# --------------------------------------------------
 
-add_executable(app ${SOURCES})
+add_executable(
+    app
+    ${SOURCES}
+)
+
+# --------------------------------------------------
+# PLATFORM-SPECIFIC LIBRARIES
+# --------------------------------------------------
+
+# Windows socket library
+if(WIN32)
+
+    target_link_libraries(
+
+        app
+
+        ws2_32
+    )
+
+endif()
