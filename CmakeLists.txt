@@ -1,0 +1,57 @@
+# Minimum CMake version required
+cmake_minimum_required(VERSION 3.20)
+
+# Project name
+project(CustomGameServer)
+add_definitions(
+    -D_WIN32_WINNT=0x0A00
+    -DBOOST_ALL_NO_LIB
+)
+
+# Use modern C++ standard
+set(CMAKE_CXX_STANDARD 17)
+
+# Require C++17
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ---------------------------------------------
+# BOOST CONFIGURATION
+# ---------------------------------------------
+
+# Path where Boost is installed
+set(BOOST_ROOT "C:/Boost")
+
+# Use static Boost libraries
+set(Boost_USE_STATIC_LIBS ON)
+
+# ---------------------------------------------
+# INCLUDE DIRECTORIES
+# ---------------------------------------------
+
+# Include project headers + Boost headers
+include_directories(
+    include
+    C:/Boost/include/boost-1_90
+)
+
+# ---------------------------------------------
+# SOURCE FILES
+# ---------------------------------------------
+
+set(SOURCES
+
+    src/main.cpp
+
+    src/boost_json.cpp
+    src/network/server.cpp
+    src/lobby/lobby.cpp
+    src/lobby/lobbyManager.cpp
+
+    src/routes/lobbyRoutes.cpp
+)
+
+# ---------------------------------------------
+# CREATE EXECUTABLE
+# ---------------------------------------------
+
+add_executable(app ${SOURCES})
