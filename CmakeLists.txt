@@ -76,6 +76,9 @@ set(SOURCES
 
     # Routes
     src/routes/lobbyRoutes.cpp
+
+    #Router
+    src/router/router.cpp
 )
 
 # --------------------------------------------------

@@ -2,17 +2,20 @@
 
 #include<boost/asio.hpp>
 #include<boost/beast.hpp>
+#include"../router/router.hpp"
 #include"../routes/lobbyRoutes.hpp"
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
+
 using tcp = asio::ip::tcp;
 
 class Server{
     private:
         asio::io_context ioContext;
         tcp::acceptor acceptor;
-        LobbyRoutes routes;
+        Router router;
+        LobbyRoutes lobbyRoutes;
 
     public:
         Server();
