@@ -9,7 +9,7 @@
 namespace json = boost::json;
 http::response<http::string_body>
 
-LobbyRoutes::CreateLobby(const http::request<http::string_body>& Request){
+LobbyRoutes::CreateLobby(const http::request<http::string_body>& Request,const RouteParams& params){
     json::value ParsedBody=json::parse(Request.body());
 
     json::object Body=ParsedBody.as_object();
@@ -38,16 +38,27 @@ LobbyRoutes::CreateLobby(const http::request<http::string_body>& Request){
     return Response;
 }
 
-http::response<http::string_body> LobbyRoutes::FetchLobby(const http::request<http::string_body>& Request){
-    std::string LobbyIDString= std::string(Request.target());
-    
-    const std::string Prefix = "/lobby/fetch/";
-    LobbyIDString.erase(0, Prefix.length());
+http::response<http::string_body> LobbyRoutes::FetchLobby(const http::request<http::string_body>& Request, const RouteParams& params){
+    auto it = params.find("LobbyID");
+    if(it == params.end()){
+        http::response<http::string_body> Response{http::status::bad_request, Request.version()};
+        Response.body() = "Missing LobbyID";
+        Response.prepare_payload();
+        return Response;
+    }
 
-    boost::uuids::string_generator Generator;
+        boost::uuids::uuid LobbyID;
+    try{
+        boost::uuids::string_generator Generator;
+        LobbyID = Generator(it->second);
+    } catch(const std::exception&){
+        http::response<http::string_body> Response{http::status::bad_request, Request.version()};
+        Response.body() = "Invalid LobbyID Format";
+        Response.prepare_payload();
+        return Response;
+    }
 
-    boost::uuids::uuid LobbyID= Generator(LobbyIDString);
-    auto Lobby= manager.FetchLobby(LobbyID);
+    auto Lobby = manager.FetchLobby(LobbyID);
 
     if(!Lobby){
         http::response<http::string_body> Response{

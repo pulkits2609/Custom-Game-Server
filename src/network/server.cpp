@@ -5,11 +5,21 @@ Server::Server():acceptor(ioContext){
     router.RegisterRoute(
         HttpMethod::POST,
         "/lobby/create",
-        [this](const http::request<http::string_body>& Request){
-            return lobbyRoutes.CreateLobby(Request);
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return lobbyRoutes.CreateLobby(req, params);
+        }
+    );
+
+    router.RegisterRoute(
+        HttpMethod::GET,
+        "/lobby/fetch/:LobbyID",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return lobbyRoutes.FetchLobby(req, params);
         }
     );
 }
+
+
 
 bool Server::Initialize(){
     return true;

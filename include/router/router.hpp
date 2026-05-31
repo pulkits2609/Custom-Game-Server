@@ -4,6 +4,7 @@
 #include<unordered_map>
 #include<functional>
 #include<boost/beast/http.hpp>
+#include<vector>
 
 namespace http = boost::beast::http;
 
@@ -12,17 +13,44 @@ enum class HttpMethod{
     POST
 };
 
-using RouteHandler = std::function 
+using RouteParams =
+    std::unordered_map
+    <
+        std::string,
+        std::string
+    >;
+
+using RouteHandler = std::function
 <
-    http::response<http::string_body>(const http::request<http::string_body>&) 
+    http::response<http::string_body>
+    (
+        const http::request<http::string_body>&,
+        const RouteParams&
+    )
 >;
 
 class Router{
     private:
 
-        std::unordered_map<std::string, RouteHandler> getRoutes;
+        struct RouteEntry{
+            HttpMethod method;
 
-        std::unordered_map<std::string, RouteHandler> postRoutes;
+            std::vector<std::string> segments;
+
+            RouteHandler handler;
+        };
+
+        std::vector<RouteEntry> routes;
+
+        static std::vector<std::string> SplitPath(
+            const std::string& path
+        );
+        bool TryMatch(
+            const RouteEntry& entry,
+            HttpMethod method,
+            const std::vector<std::string>& requestSegments,
+            RouteParams& outParams
+        ) const;
 
     public:
 
