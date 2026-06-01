@@ -6,6 +6,8 @@
 #include <boost/json.hpp>
 #include <iostream>
 
+LobbyRoutes::LobbyRoutes(LobbyManager& manager):manager(manager){}
+
 namespace json = boost::json;
 http::response<http::string_body>
 

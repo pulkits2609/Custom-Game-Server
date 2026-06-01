@@ -1,7 +1,7 @@
 #include "../../include/network/server.hpp"
 #include <iostream>
 
-Server::Server():acceptor(ioContext){
+Server::Server():acceptor(ioContext), lobbyRoutes(lobbyManager), sessionRoutes(sessionManager){
     router.RegisterRoute(
         HttpMethod::POST,
         "/lobby/create",
@@ -17,9 +17,31 @@ Server::Server():acceptor(ioContext){
             return lobbyRoutes.FetchLobby(req, params);
         }
     );
+
+    router.RegisterRoute(
+        HttpMethod::POST,
+        "/session/login",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return sessionRoutes.Login(req, params);
+        }
+    );
+
+    router.RegisterRoute(
+        HttpMethod::GET,
+        "/session/fetch/:SessionID",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return sessionRoutes.FetchSession(req, params);
+        }
+    );
+
+    router.RegisterRoute(
+        HttpMethod::POST,
+        "/session/logout",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return sessionRoutes.Logout(req, params);
+        }
+    );
 }
-
-
 
 bool Server::Initialize(){
     return true;

@@ -79,6 +79,13 @@ set(SOURCES
 
     #Router
     src/router/router.cpp
+
+    # Session System
+    src/session/session.cpp
+    src/session/sessionManager.cpp
+
+    # Session Routes
+    src/routes/sessionRoutes.cpp
 )
 
 # --------------------------------------------------
