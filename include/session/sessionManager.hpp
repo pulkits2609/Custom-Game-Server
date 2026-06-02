@@ -40,5 +40,7 @@ public:
         const boost::uuids::uuid& token
     );
 
+    void CleanupExpiredSessions();
+
     void DestroySessionByToken(const boost::uuids::uuid& token);
 };

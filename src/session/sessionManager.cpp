@@ -47,6 +47,9 @@ void SessionManager::DestroySession(
 bool SessionManager::ValidateToken(
     const boost::uuids::uuid& token
 ){
+
+    CleanupExpiredSessions();
+
     auto it = sessionsByToken.find(token);
 
     if(it == sessionsByToken.end()){
@@ -60,6 +63,26 @@ bool SessionManager::ValidateToken(
     it->second->ExtendExpiration();
 
     return true;
+}
+
+void SessionManager::CleanupExpiredSessions(){
+
+    std::vector<boost::uuids::uuid> ExpiredSessions;
+
+    for(const auto& Pair : sessionsById){
+
+        if(Pair.second->IsExpired()){
+
+            ExpiredSessions.push_back(
+                Pair.first
+            );
+        }
+    }
+
+    for(const auto& SessionID : ExpiredSessions){
+
+        DestroySession(SessionID);
+    }
 }
 
 void SessionManager::DestroySessionByToken(const boost::uuids::uuid& token){
