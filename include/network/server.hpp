@@ -7,6 +7,7 @@
 #include "../session/sessionManager.hpp"
 #include "../routes/sessionRoutes.hpp"
 #include "../lobby/lobbyManager.hpp"
+#include "../middleware/authMiddleware.hpp"
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -21,9 +22,11 @@ class Server{
         Router router;
 
         LobbyManager lobbyManager;
-        LobbyRoutes lobbyRoutes;
-
         SessionManager sessionManager;
+
+        AuthMiddleware authMiddleware;
+
+        LobbyRoutes lobbyRoutes;
         SessionRoutes sessionRoutes;
 
     public:

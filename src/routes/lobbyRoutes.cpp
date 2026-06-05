@@ -6,17 +6,33 @@
 #include <boost/json.hpp>
 #include <iostream>
 
-LobbyRoutes::LobbyRoutes(LobbyManager& manager):manager(manager){}
+LobbyRoutes::LobbyRoutes(LobbyManager& manager, AuthMiddleware& authMiddleware):manager(manager), authMiddleware(authMiddleware){}
 
 namespace json = boost::json;
 http::response<http::string_body>
 
 LobbyRoutes::CreateLobby(const http::request<http::string_body>& Request,const RouteParams& params){
+    auto Session =
+        authMiddleware.Authenticate(Request);
+
+    if(!Session){
+
+        http::response<http::string_body> Response{
+            http::status::unauthorized,
+            Request.version()
+        };
+
+        Response.body() = "Unauthorized";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
     json::value ParsedBody=json::parse(Request.body());
 
     json::object Body=ParsedBody.as_object();
 
-    std::string HostID=Body["hostID"].as_string().c_str();
+    std::string HostID = Session->GetUsername();
 
     std::string LobbyName=Body["lobbyName"].as_string().c_str();
 

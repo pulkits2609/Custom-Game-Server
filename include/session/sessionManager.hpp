@@ -36,7 +36,7 @@ public:
         const boost::uuids::uuid& sessionId
     );
 
-    bool ValidateToken(
+    std::shared_ptr<Session> ValidateToken(
         const boost::uuids::uuid& token
     );
 

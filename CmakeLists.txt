@@ -86,6 +86,9 @@ set(SOURCES
 
     # Session Routes
     src/routes/sessionRoutes.cpp
+
+    #Middleware
+    src/middleware/authMiddleware.cpp
 )
 
 # --------------------------------------------------

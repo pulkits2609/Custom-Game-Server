@@ -1,7 +1,7 @@
 #include "../../include/network/server.hpp"
 #include <iostream>
 
-Server::Server():acceptor(ioContext), lobbyRoutes(lobbyManager), sessionRoutes(sessionManager){
+Server::Server():acceptor(ioContext), authMiddleware(sessionManager), lobbyRoutes(lobbyManager, authMiddleware),sessionRoutes(sessionManager){
     router.RegisterRoute(
         HttpMethod::POST,
         "/lobby/create",

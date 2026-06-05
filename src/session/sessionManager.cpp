@@ -1,4 +1,5 @@
 #include "../../include/session/sessionManager.hpp"
+#include <vector>
 
 std::shared_ptr<Session> SessionManager::CreateSession(
     const std::string& playerName,
@@ -44,25 +45,24 @@ void SessionManager::DestroySession(
     sessionsById.erase(it);
 }
 
-bool SessionManager::ValidateToken(
+std::shared_ptr<Session> SessionManager::ValidateToken(
     const boost::uuids::uuid& token
 ){
-
     CleanupExpiredSessions();
 
     auto it = sessionsByToken.find(token);
 
     if(it == sessionsByToken.end()){
-        return false;
+        return nullptr;
     }
 
     if(it->second->IsExpired()){
-        return false;
+        return nullptr;
     }
 
     it->second->ExtendExpiration();
 
-    return true;
+    return it->second;
 }
 
 void SessionManager::CleanupExpiredSessions(){
