@@ -22,4 +22,7 @@ class LobbyManager{
         );
 
         std::shared_ptr<Lobby> FetchLobby(const boost::uuids::uuid& lobbyId);
+        bool DestroyLobby(
+            const boost::uuids::uuid& lobbyId
+        );
 };
