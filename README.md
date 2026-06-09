@@ -1,57 +1,50 @@
 # Custom Game Server
 
-A modular multiplayer backend server written in C++ using Boost.Asio and Boost.Beast.
+A modular multiplayer backend server written in C++17 using Boost.Asio and Boost.Beast.
 
-This project is focused on building a scalable multiplayer networking architecture from scratch, including HTTP routing, lobby management, UUID-based session tracking, JSON serialization, and real-time multiplayer communication systems.
+This project is focused on building a scalable multiplayer networking architecture from scratch, including HTTP routing, lobby management, session tracking, and JSON-based communication.
 
 ---
 
-# Features
+# Current Features
 
 ## HTTP Networking
 - Custom HTTP server using Boost.Beast
-- TCP socket accept loop architecture
+- TCP socket accept loop
 - Request/response handling
 - Dynamic route matching system
-- Modular routing layer
+
+## Session System
+- UUID-based SessionID & SessionToken separation
+- Centralized session tracking with sliding expiration
+- Login, fetch session, and logout endpoints
+- Temporary in-memory user credentials for testing
 
 ## Lobby System
-- UUID based lobby generation
-- Lobby creation and fetching
-- Centralized lobby management
-- Shared pointer memory management
-- Scalable multiplayer session architecture
+- Lobby creation and fetching endpoints
+- Automatic host join on lobby creation
+- Member management: add/remove/check membership, max player enforcement
+- Role-based lobby detail fetching (basic info for outsiders, full info for members)
 
-## JSON Support
-- JSON request parsing using Boost.JSON
-- JSON response serialization
-- Structured API communication
-
-## Multiplayer Networking
-- Hybrid TCP + UDP architecture
-- Real-time multiplayer data synchronization
-- Low latency packet streaming pipeline
-- Foundation for authoritative server replication
-- Multiplayer state maintenance system
+## Middleware
+- Centralized authentication via AuthMiddleware
+- Reusable for all protected routes
 
 ## Backend Architecture
-- Modular project structure
-- Separate network/routes/lobby systems
-- Clean header/source organization
-- Consistent naming and formatting conventions
-- Reusable server initialization pipeline
+- Modular project structure with clean header/source separation
+- Managers own state, routes reference managers
+- Consistent naming and formatting
+- Small, readable, and reusable classes
 
 ---
 
 # Technologies Used
 
-- C++
+- C++17
 - Boost.Asio
 - Boost.Beast
 - Boost.JSON
-- UUID Systems
-- TCP Networking
-- UDP Networking
+- Boost.UUID
 - CMake
 
 ---
@@ -64,12 +57,16 @@ Custom-Game-Server/
 ├── include/
 │   ├── lobby/
 │   ├── network/
-│   └── routes/
+│   ├── routes/
+│   ├── session/
+│   └── middleware/
 │
 ├── src/
 │   ├── lobby/
 │   ├── network/
-│   └── routes/
+│   ├── routes/
+│   ├── session/
+│   └── middleware/
 │
 ├── build/
 ├── CMakeLists.txt
