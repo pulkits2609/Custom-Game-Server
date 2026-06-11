@@ -24,4 +24,15 @@ class LobbyRoutes{
             const http::request<http::string_body>& request,
             const RouteParams& params
         );
+
+        http::response<http::string_body> JoinLobby(
+            const http::request<http::string_body>& request,
+            const RouteParams& params
+        );
+
+        http::response<http::string_body> LeaveLobby(
+            const http::request<http::string_body>& request,
+            const RouteParams& params
+        );
+        
 };

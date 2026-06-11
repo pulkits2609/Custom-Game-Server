@@ -79,3 +79,7 @@ const std::vector<std::string>& Lobby::GetMembers() const{
 int Lobby::GetCurrentPlayerCount() const{
     return static_cast<int>(members.size());
 }
+
+void Lobby::ClearMembers(){
+    members.clear();
+}

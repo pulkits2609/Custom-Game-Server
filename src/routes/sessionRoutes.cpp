@@ -10,13 +10,17 @@ namespace json = boost::json;
 // Temporary in-memory credentials for testing
 static const std::unordered_map<std::string, std::string> validCredentials = {
     {"Pulkit",   "password123"},
-    {"TestUser", "test123"}
+    {"TestUser", "test123"},
+    {"Rudra", "rudra123"},
+    {"Sam", "sam123"}
 };
 
 // Temporary in-memory player names for testing
 static const std::unordered_map<std::string, std::string> playerNames = {
     {"Pulkit",   "Pulkit"},
-    {"TestUser", "Test User"}
+    {"TestUser", "Test User"},
+    {"Rudra", "Rudra"},
+    {"Sam", "Sam"}
 };
 
 SessionRoutes::SessionRoutes(SessionManager& manager) : manager(manager){}

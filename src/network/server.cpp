@@ -41,6 +41,22 @@ Server::Server():acceptor(ioContext), authMiddleware(sessionManager), lobbyRoute
             return sessionRoutes.Logout(req, params);
         }
     );
+
+    router.RegisterRoute(
+        HttpMethod::POST,
+        "/lobby/join/:LobbyID",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return lobbyRoutes.JoinLobby(req, params);
+        }
+    );
+
+    router.RegisterRoute(
+        HttpMethod::POST,
+        "/lobby/leave/:LobbyID",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return lobbyRoutes.LeaveLobby(req, params);
+        }
+    );
 }
 
 bool Server::Initialize(){

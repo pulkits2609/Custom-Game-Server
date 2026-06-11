@@ -40,4 +40,6 @@ class Lobby{
     const std::vector<std::string>& GetMembers() const;
 
     int GetCurrentPlayerCount() const;
+
+    void ClearMembers();
 };
