@@ -26,3 +26,13 @@ bool LobbyManager::DestroyLobby(const boost::uuids::uuid& lobbyId){
     lobbies.erase(It);
     return true;
 }
+
+std::vector<std::shared_ptr<Lobby>> LobbyManager::FetchAllLobbies() const{
+    std::vector<std::shared_ptr<Lobby>> AllLobbies;
+
+    for(const auto& Pair : lobbies){
+        AllLobbies.push_back(Pair.second);
+    }
+
+    return AllLobbies;
+}

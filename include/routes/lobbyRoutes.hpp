@@ -34,5 +34,15 @@ class LobbyRoutes{
             const http::request<http::string_body>& request,
             const RouteParams& params
         );
+
+        http::response<http::string_body> ListLobbies(
+            const http::request<http::string_body>& request,
+            const RouteParams& params
+        );
+
+        http::response<http::string_body> DestroyLobby(
+            const http::request<http::string_body>& request,
+            const RouteParams& params
+        );
         
 };

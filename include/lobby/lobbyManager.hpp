@@ -5,6 +5,7 @@
 #include<memory>
 #include<boost/uuid/uuid.hpp>
 #include<boost/container_hash/hash.hpp>
+#include<vector>
 
 class LobbyManager{
     private:
@@ -25,4 +26,6 @@ class LobbyManager{
         bool DestroyLobby(
             const boost::uuids::uuid& lobbyId
         );
+
+        std::vector<std::shared_ptr<Lobby>> FetchAllLobbies() const;
 };
