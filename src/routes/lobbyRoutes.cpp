@@ -660,3 +660,169 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
     return Response;
 }
+
+http::response<http::string_body> LobbyRoutes::KickPlayer(
+    const http::request<http::string_body>& Request,
+    const RouteParams& params
+){
+    auto Session =
+        authMiddleware.Authenticate(Request);
+
+    if(!Session){
+
+        http::response<http::string_body> Response{
+            http::status::unauthorized,
+            Request.version()
+        };
+
+        Response.body() = "Unauthorized";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    auto LobbyIt = params.find("LobbyID");
+
+    if(LobbyIt == params.end()){
+
+        http::response<http::string_body> Response{
+            http::status::bad_request,
+            Request.version()
+        };
+
+        Response.body() = "Missing LobbyID";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    auto TargetIt = params.find("TargetUsername");
+
+    if(TargetIt == params.end()){
+
+        http::response<http::string_body> Response{
+            http::status::bad_request,
+            Request.version()
+        };
+
+        Response.body() = "Missing TargetUsername";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    boost::uuids::uuid LobbyID;
+
+    try{
+
+        boost::uuids::string_generator Generator;
+        LobbyID = Generator(LobbyIt->second);
+    }
+    catch(const std::exception&){
+
+        http::response<http::string_body> Response{
+            http::status::bad_request,
+            Request.version()
+        };
+
+        Response.body() = "Invalid LobbyID Format";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    auto Lobby =
+        manager.FetchLobby(
+            LobbyID
+        );
+
+    if(!Lobby){
+
+        http::response<http::string_body> Response{
+            http::status::not_found,
+            Request.version()
+        };
+
+        Response.body() = "Lobby Not Found";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    const std::string HostUsername =
+        Session->GetUsername();
+
+    if(!Lobby->IsHost(HostUsername)){
+
+        http::response<http::string_body> Response{
+            http::status::forbidden,
+            Request.version()
+        };
+
+        Response.body() = "Only Host Can Kick Players";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    const std::string TargetUsername = TargetIt->second;
+
+    if(TargetUsername == HostUsername){
+
+        http::response<http::string_body> Response{
+            http::status::forbidden,
+            Request.version()
+        };
+
+        Response.body() = "Host Cannot Kick Self";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    if(!Lobby->IsMember(TargetUsername)){
+
+        http::response<http::string_body> Response{
+            http::status::conflict,
+            Request.version()
+        };
+
+        Response.body() = "Player Not In Lobby";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    if(!Lobby->RemoveMember(TargetUsername)){
+
+        http::response<http::string_body> Response{
+            http::status::internal_server_error,
+            Request.version()
+        };
+
+        Response.body() = "Could Not Kick Player";
+        Response.prepare_payload();
+
+        return Response;
+    }
+
+    json::object ResponseBody;
+    ResponseBody["message"] = "Player Kicked";
+    ResponseBody["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    ResponseBody["username"] = TargetUsername;
+
+    http::response<http::string_body> Response{
+        http::status::ok,
+        Request.version()
+    };
+
+    Response.set(
+        http::field::content_type,
+        "application/json"
+    );
+
+    Response.body() = json::serialize(ResponseBody);
+    Response.prepare_payload();
+
+    return Response;
+}

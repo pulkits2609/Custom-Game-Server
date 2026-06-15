@@ -73,6 +73,14 @@ Server::Server():acceptor(ioContext), authMiddleware(sessionManager), lobbyRoute
             return lobbyRoutes.DestroyLobby(req, params);
         }
     );
+
+    router.RegisterRoute(
+        HttpMethod::POST,
+        "/lobby/kick/:LobbyID/:TargetUsername",
+        [this](const http::request<http::string_body>& req, const RouteParams& params){
+            return lobbyRoutes.KickPlayer(req, params);
+        }
+    );
 }
 
 bool Server::Initialize(){

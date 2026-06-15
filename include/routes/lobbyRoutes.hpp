@@ -44,5 +44,10 @@ class LobbyRoutes{
             const http::request<http::string_body>& request,
             const RouteParams& params
         );
+
+        http::response<http::string_body> KickPlayer(
+            const http::request<http::string_body>& request,
+            const RouteParams& params
+        );
         
 };
