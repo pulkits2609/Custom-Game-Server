@@ -1,4 +1,5 @@
 #include "../../include/routes/lobbyRoutes.hpp"
+#include "../../include/network/message.hpp"
 
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/string_generator.hpp>
@@ -6,12 +7,25 @@
 #include <boost/json.hpp>
 #include <iostream>
 
-LobbyRoutes::LobbyRoutes(LobbyManager& manager, AuthMiddleware& authMiddleware):manager(manager), authMiddleware(authMiddleware){}
-
 namespace json = boost::json;
 
-http::response<http::string_body> LobbyRoutes::CreateLobby(const http::request<http::string_body>& Request,const RouteParams& params){
-    auto Session = authMiddleware.Authenticate(Request);
+LobbyRoutes::LobbyRoutes(
+    LobbyManager& manager,
+    AuthMiddleware& authMiddleware,
+    ConnectionManager& connectionManager
+)
+    : manager(manager),
+      authMiddleware(authMiddleware),
+      connectionManager(connectionManager)
+{
+}
+
+http::response<http::string_body> LobbyRoutes::CreateLobby(
+    const http::request<http::string_body>& Request,
+    const RouteParams& params
+){
+    auto Session =
+        authMiddleware.Authenticate(Request);
 
     if(!Session){
         http::response<http::string_body> Response{
@@ -21,25 +35,38 @@ http::response<http::string_body> LobbyRoutes::CreateLobby(const http::request<h
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
-    json::value ParsedBody=json::parse(Request.body());
-
-    json::object Body=ParsedBody.as_object();
+    json::value ParsedBody = json::parse(Request.body());
+    json::object Body = ParsedBody.as_object();
 
     std::string HostID = Session->GetUsername();
+    std::string LobbyName = Body["lobbyName"].as_string().c_str();
+    int MaxPlayers = Body["maxPlayers"].as_int64();
 
-    std::string LobbyName=Body["lobbyName"].as_string().c_str();
-
-    int MaxPlayers= Body["maxPlayers"].as_int64();
-    auto Lobby = manager.CreateLobby(HostID, LobbyName, MaxPlayers);
+    auto Lobby = manager.CreateLobby(
+        HostID,
+        LobbyName,
+        MaxPlayers
+    );
 
     json::object ResponseBody;
-    ResponseBody["message"]= "Lobby Created";
+    ResponseBody["message"] = "Lobby Created";
+    ResponseBody["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
 
-    ResponseBody["lobbyID"]= boost::uuids::to_string(Lobby->GetLobbyId());
+    json::object CreatedEventData;
+    CreatedEventData["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    CreatedEventData["lobbyName"] = LobbyName;
+
+    connectionManager.SendToUsername(
+        HostID,
+        Message::BuildEvent("LobbyCreated", CreatedEventData)
+    );
+
+    connectionManager.Broadcast(
+        Message::BuildEvent("LobbyListUpdated")
+    );
 
     http::response<http::string_body> Response{
         http::status::ok,
@@ -47,9 +74,8 @@ http::response<http::string_body> LobbyRoutes::CreateLobby(const http::request<h
     };
 
     Response.set(http::field::content_type, "application/json");
-    Response.body()= json::serialize(ResponseBody);
+    Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -61,7 +87,6 @@ http::response<http::string_body> LobbyRoutes::FetchLobby(
         authMiddleware.Authenticate(Request);
 
     if(!Session){
-
         http::response<http::string_body> Response{
             http::status::unauthorized,
             Request.version()
@@ -69,14 +94,11 @@ http::response<http::string_body> LobbyRoutes::FetchLobby(
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto It = params.find("LobbyID");
-
     if(It == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -84,100 +106,56 @@ http::response<http::string_body> LobbyRoutes::FetchLobby(
 
         Response.body() = "Missing LobbyID";
         Response.prepare_payload();
-
         return Response;
     }
 
     boost::uuids::uuid LobbyID;
-
     try{
-
         boost::uuids::string_generator Generator;
-
-        LobbyID =
-            Generator(It->second);
+        LobbyID = Generator(It->second);
     }
     catch(const std::exception&){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
         };
 
-        Response.body() =
-            "Invalid LobbyID Format";
-
+        Response.body() = "Invalid LobbyID Format";
         Response.prepare_payload();
-
         return Response;
     }
 
-    auto Lobby =
-        manager.FetchLobby(
-            LobbyID
-        );
-
+    auto Lobby = manager.FetchLobby(LobbyID);
     if(!Lobby){
-
         http::response<http::string_body> Response{
             http::status::not_found,
             Request.version()
         };
 
-        Response.body() =
-            "Lobby Not Found";
-
+        Response.body() = "Lobby Not Found";
         Response.prepare_payload();
-
         return Response;
     }
 
-    bool IsHost =
-        Lobby->IsHost(
-            Session->GetUsername()
-        );
-
-    bool IsMember =
-        Lobby->IsMember(
-            Session->GetUsername()
-        );
+    bool IsHost = Lobby->IsHost(Session->GetUsername());
+    bool IsMember = Lobby->IsMember(Session->GetUsername());
 
     json::object ResponseBody;
-
-    ResponseBody["LobbyID"] =
-        boost::uuids::to_string(
-            Lobby->GetLobbyId()
-        );
-
-    ResponseBody["LobbyName"] =
-        Lobby->GetLobbyName();
-
+    ResponseBody["LobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    ResponseBody["LobbyName"] = Lobby->GetLobbyName();
     ResponseBody["CurrentPlayers"] = Lobby->GetCurrentPlayerCount();
-
-    ResponseBody["MaxPlayers"] =
-        Lobby->GetMaxPlayers();
-
-    ResponseBody["IsFull"] =
-        Lobby->IsFull();
+    ResponseBody["MaxPlayers"] = Lobby->GetMaxPlayers();
+    ResponseBody["IsFull"] = Lobby->IsFull();
 
     if(IsHost || IsMember){
-
-        ResponseBody["HostID"] =
-            Lobby->GetHostId();
+        ResponseBody["HostID"] = Lobby->GetHostId();
 
         json::array MembersArray;
-
-        for(
-            const auto& Member :
-            Lobby->GetMembers()
-        ){
-            MembersArray.push_back(
-                json::value(Member)
-            );
+        for(const auto& Member : Lobby->GetMembers()){
+            MembersArray.push_back(json::value(Member));
         }
 
-        ResponseBody["Members"] =
-            MembersArray;
+        ResponseBody["Members"] = MembersArray;
     }
 
     http::response<http::string_body> Response{
@@ -190,13 +168,8 @@ http::response<http::string_body> LobbyRoutes::FetchLobby(
         "application/json"
     );
 
-    Response.body() =
-        json::serialize(
-            ResponseBody
-        );
-
+    Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -208,7 +181,6 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
         authMiddleware.Authenticate(Request);
 
     if(!Session){
-
         http::response<http::string_body> Response{
             http::status::unauthorized,
             Request.version()
@@ -216,14 +188,11 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto It = params.find("LobbyID");
-
     if(It == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -231,21 +200,15 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Missing LobbyID";
         Response.prepare_payload();
-
         return Response;
     }
 
     boost::uuids::uuid LobbyID;
-
     try{
-
         boost::uuids::string_generator Generator;
-
-        LobbyID =
-            Generator(It->second);
+        LobbyID = Generator(It->second);
     }
     catch(const std::exception&){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -253,17 +216,11 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Invalid LobbyID Format";
         Response.prepare_payload();
-
         return Response;
     }
 
-    auto Lobby =
-        manager.FetchLobby(
-            LobbyID
-        );
-
+    auto Lobby = manager.FetchLobby(LobbyID);
     if(!Lobby){
-
         http::response<http::string_body> Response{
             http::status::not_found,
             Request.version()
@@ -271,15 +228,12 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Lobby Not Found";
         Response.prepare_payload();
-
         return Response;
     }
 
-    const std::string Username =
-        Session->GetUsername();
+    const std::string Username = Session->GetUsername();
 
     if(Lobby->IsMember(Username)){
-
         http::response<http::string_body> Response{
             http::status::conflict,
             Request.version()
@@ -287,12 +241,10 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Already In Lobby";
         Response.prepare_payload();
-
         return Response;
     }
 
     if(Lobby->IsFull()){
-
         http::response<http::string_body> Response{
             http::status::conflict,
             Request.version()
@@ -300,12 +252,10 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Lobby Is Full";
         Response.prepare_payload();
-
         return Response;
     }
 
     if(!Lobby->AddMember(Username)){
-
         http::response<http::string_body> Response{
             http::status::conflict,
             Request.version()
@@ -313,9 +263,26 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
 
         Response.body() = "Could Not Join Lobby";
         Response.prepare_payload();
-
         return Response;
     }
+
+    json::object JoinedEventData;
+    JoinedEventData["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    JoinedEventData["username"] = Username;
+
+    connectionManager.SendToUsername(
+        Username,
+        Message::BuildEvent("JoinedLobby", JoinedEventData)
+    );
+
+    connectionManager.BroadcastToUsers(
+        Lobby->GetMembers(),
+        Message::BuildEvent("LobbyUpdated", JoinedEventData)
+    );
+
+    connectionManager.Broadcast(
+        Message::BuildEvent("LobbyListUpdated")
+    );
 
     json::object ResponseBody;
     ResponseBody["message"] = "Joined Lobby";
@@ -331,13 +298,8 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
         "application/json"
     );
 
-    Response.body() =
-        json::serialize(
-            ResponseBody
-        );
-
+    Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -349,7 +311,6 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
         authMiddleware.Authenticate(Request);
 
     if(!Session){
-
         http::response<http::string_body> Response{
             http::status::unauthorized,
             Request.version()
@@ -357,14 +318,11 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto It = params.find("LobbyID");
-
     if(It == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -372,21 +330,15 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
         Response.body() = "Missing LobbyID";
         Response.prepare_payload();
-
         return Response;
     }
 
     boost::uuids::uuid LobbyID;
-
     try{
-
         boost::uuids::string_generator Generator;
-
-        LobbyID =
-            Generator(It->second);
+        LobbyID = Generator(It->second);
     }
     catch(const std::exception&){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -394,17 +346,11 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
         Response.body() = "Invalid LobbyID Format";
         Response.prepare_payload();
-
         return Response;
     }
 
-    auto Lobby =
-        manager.FetchLobby(
-            LobbyID
-        );
-
+    auto Lobby = manager.FetchLobby(LobbyID);
     if(!Lobby){
-
         http::response<http::string_body> Response{
             http::status::not_found,
             Request.version()
@@ -412,31 +358,32 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
         Response.body() = "Lobby Not Found";
         Response.prepare_payload();
-
         return Response;
     }
 
-    const std::string Username =
-        Session->GetUsername();
+    const std::string Username = Session->GetUsername();
 
     if(!Lobby->IsMember(Username)){
-
         http::response<http::string_body> Response{
-            http::status::conflict, Request.version()
+            http::status::conflict,
+            Request.version()
         };
 
         Response.body() = "Not In Lobby";
         Response.prepare_payload();
-
         return Response;
     }
 
+    json::object LeftPayload;
+    LeftPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    LeftPayload["username"] = Username;
+
     if(Lobby->IsHost(Username)){
+        auto Members = Lobby->GetMembers();
 
         Lobby->ClearMembers();
 
         if(!manager.DestroyLobby(LobbyID)){
-
             http::response<http::string_body> Response{
                 http::status::internal_server_error,
                 Request.version()
@@ -444,9 +391,17 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
             Response.body() = "Could Not Destroy Lobby";
             Response.prepare_payload();
-
             return Response;
         }
+
+        connectionManager.BroadcastToUsers(
+            Members,
+            Message::BuildEvent("LobbyDestroyed", LeftPayload)
+        );
+
+        connectionManager.Broadcast(
+            Message::BuildEvent("LobbyListUpdated")
+        );
 
         json::object ResponseBody;
         ResponseBody["message"] = "Lobby Destroyed";
@@ -456,23 +411,18 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
             Request.version()
         };
 
-        Response.set(
-            http::field::content_type,
-            "application/json"
-        );
-
-        Response.body() =
-            json::serialize(
-                ResponseBody
-            );
-
+        Response.set(http::field::content_type, "application/json");
+        Response.body() = json::serialize(ResponseBody);
         Response.prepare_payload();
-
         return Response;
     }
 
-    if(!Lobby->RemoveMember(Username)){
+    connectionManager.SendToUsername(
+        Username,
+        Message::BuildEvent("LeftLobby", LeftPayload)
+    );
 
+    if(!Lobby->RemoveMember(Username)){
         http::response<http::string_body> Response{
             http::status::conflict,
             Request.version()
@@ -480,9 +430,17 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
 
         Response.body() = "Could Not Leave Lobby";
         Response.prepare_payload();
-
         return Response;
     }
+
+    connectionManager.BroadcastToUsers(
+        Lobby->GetMembers(),
+        Message::BuildEvent("LobbyUpdated", LeftPayload)
+    );
+
+    connectionManager.Broadcast(
+        Message::BuildEvent("LobbyListUpdated")
+    );
 
     json::object ResponseBody;
     ResponseBody["message"] = "Left Lobby";
@@ -493,18 +451,9 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
         Request.version()
     };
 
-    Response.set(
-        http::field::content_type,
-        "application/json"
-    );
-
-    Response.body() =
-        json::serialize(
-            ResponseBody
-        );
-
+    Response.set(http::field::content_type, "application/json");
+    Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -540,7 +489,6 @@ http::response<http::string_body> LobbyRoutes::ListLobbies(
 
     Response.body() = json::serialize(LobbiesArray);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -552,7 +500,6 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
         authMiddleware.Authenticate(Request);
 
     if(!Session){
-
         http::response<http::string_body> Response{
             http::status::unauthorized,
             Request.version()
@@ -560,14 +507,11 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto It = params.find("LobbyID");
-
     if(It == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -575,19 +519,15 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Missing LobbyID";
         Response.prepare_payload();
-
         return Response;
     }
 
     boost::uuids::uuid LobbyID;
-
     try{
-
         boost::uuids::string_generator Generator;
         LobbyID = Generator(It->second);
     }
     catch(const std::exception&){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -595,14 +535,11 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Invalid LobbyID Format";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto Lobby = manager.FetchLobby(LobbyID);
-
     if(!Lobby){
-
         http::response<http::string_body> Response{
             http::status::not_found,
             Request.version()
@@ -610,12 +547,10 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Lobby Not Found";
         Response.prepare_payload();
-
         return Response;
     }
 
     if(!Lobby->IsHost(Session->GetUsername())){
-
         http::response<http::string_body> Response{
             http::status::forbidden,
             Request.version()
@@ -623,14 +558,16 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Only Host Can Destroy Lobby";
         Response.prepare_payload();
-
         return Response;
     }
+
+    auto Members = Lobby->GetMembers();
+    json::object DestroyPayload;
+    DestroyPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
 
     Lobby->ClearMembers();
 
     if(!manager.DestroyLobby(LobbyID)){
-
         http::response<http::string_body> Response{
             http::status::internal_server_error,
             Request.version()
@@ -638,9 +575,17 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
         Response.body() = "Could Not Destroy Lobby";
         Response.prepare_payload();
-
         return Response;
     }
+
+    connectionManager.BroadcastToUsers(
+        Members,
+        Message::BuildEvent("LobbyDestroyed", DestroyPayload)
+    );
+
+    connectionManager.Broadcast(
+        Message::BuildEvent("LobbyListUpdated")
+    );
 
     json::object ResponseBody;
     ResponseBody["message"] = "Lobby Destroyed";
@@ -657,7 +602,6 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
 
     Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }
 
@@ -669,7 +613,6 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
         authMiddleware.Authenticate(Request);
 
     if(!Session){
-
         http::response<http::string_body> Response{
             http::status::unauthorized,
             Request.version()
@@ -677,14 +620,11 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Unauthorized";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto LobbyIt = params.find("LobbyID");
-
     if(LobbyIt == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -692,14 +632,11 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Missing LobbyID";
         Response.prepare_payload();
-
         return Response;
     }
 
     auto TargetIt = params.find("TargetUsername");
-
     if(TargetIt == params.end()){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -707,19 +644,15 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Missing TargetUsername";
         Response.prepare_payload();
-
         return Response;
     }
 
     boost::uuids::uuid LobbyID;
-
     try{
-
         boost::uuids::string_generator Generator;
         LobbyID = Generator(LobbyIt->second);
     }
     catch(const std::exception&){
-
         http::response<http::string_body> Response{
             http::status::bad_request,
             Request.version()
@@ -727,17 +660,11 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Invalid LobbyID Format";
         Response.prepare_payload();
-
         return Response;
     }
 
-    auto Lobby =
-        manager.FetchLobby(
-            LobbyID
-        );
-
+    auto Lobby = manager.FetchLobby(LobbyID);
     if(!Lobby){
-
         http::response<http::string_body> Response{
             http::status::not_found,
             Request.version()
@@ -745,15 +672,12 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Lobby Not Found";
         Response.prepare_payload();
-
         return Response;
     }
 
-    const std::string HostUsername =
-        Session->GetUsername();
+    const std::string HostUsername = Session->GetUsername();
 
     if(!Lobby->IsHost(HostUsername)){
-
         http::response<http::string_body> Response{
             http::status::forbidden,
             Request.version()
@@ -761,14 +685,12 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Only Host Can Kick Players";
         Response.prepare_payload();
-
         return Response;
     }
 
     const std::string TargetUsername = TargetIt->second;
 
     if(TargetUsername == HostUsername){
-
         http::response<http::string_body> Response{
             http::status::forbidden,
             Request.version()
@@ -776,12 +698,10 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Host Cannot Kick Self";
         Response.prepare_payload();
-
         return Response;
     }
 
     if(!Lobby->IsMember(TargetUsername)){
-
         http::response<http::string_body> Response{
             http::status::conflict,
             Request.version()
@@ -789,12 +709,19 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Player Not In Lobby";
         Response.prepare_payload();
-
         return Response;
     }
 
-    if(!Lobby->RemoveMember(TargetUsername)){
+    json::object KickPayload;
+    KickPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
+    KickPayload["username"] = TargetUsername;
 
+    connectionManager.SendToUsername(
+        TargetUsername,
+        Message::BuildEvent("KickedFromLobby", KickPayload)
+    );
+
+    if(!Lobby->RemoveMember(TargetUsername)){
         http::response<http::string_body> Response{
             http::status::internal_server_error,
             Request.version()
@@ -802,9 +729,17 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
         Response.body() = "Could Not Kick Player";
         Response.prepare_payload();
-
         return Response;
     }
+
+    connectionManager.BroadcastToUsers(
+        Lobby->GetMembers(),
+        Message::BuildEvent("LobbyUpdated", KickPayload)
+    );
+
+    connectionManager.Broadcast(
+        Message::BuildEvent("LobbyListUpdated")
+    );
 
     json::object ResponseBody;
     ResponseBody["message"] = "Player Kicked";
@@ -823,6 +758,5 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
 
     Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
-
     return Response;
 }

@@ -69,6 +69,10 @@ set(SOURCES
 
     # Network
     src/network/server.cpp
+    src/network/realtimeServer.cpp
+    src/network/clientConnection.cpp
+    src/network/connectionManager.cpp
+    src/network/message.cpp
 
     # Lobby System
     src/lobby/lobby.cpp
@@ -76,18 +80,16 @@ set(SOURCES
 
     # Routes
     src/routes/lobbyRoutes.cpp
+    src/routes/sessionRoutes.cpp
 
-    #Router
+    # Router
     src/router/router.cpp
 
     # Session System
     src/session/session.cpp
     src/session/sessionManager.cpp
 
-    # Session Routes
-    src/routes/sessionRoutes.cpp
-
-    #Middleware
+    # Middleware
     src/middleware/authMiddleware.cpp
 )
 

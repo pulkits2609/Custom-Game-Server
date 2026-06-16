@@ -1,7 +1,15 @@
 #include "../../include/network/server.hpp"
 #include <iostream>
 
-Server::Server():acceptor(ioContext), authMiddleware(sessionManager), lobbyRoutes(lobbyManager, authMiddleware),sessionRoutes(sessionManager){
+Server::Server()
+    : acceptor(ioContext),
+      lobbyManager(),
+      sessionManager(),
+      connectionManager(),
+      authMiddleware(sessionManager),
+      lobbyRoutes(lobbyManager, authMiddleware, connectionManager),
+      sessionRoutes(sessionManager)
+{
     router.RegisterRoute(
         HttpMethod::POST,
         "/lobby/create",
@@ -99,9 +107,8 @@ bool Server::Bind(int Port){
         acceptor.bind(Endpoint);
         return true;
     }
-
     catch(const std::exception& Error){
-        std::cout<<"Bind Error: "<<Error.what()<<"\n";
+        std::cout << "Bind Error: " << Error.what() << "\n";
         return false;
     }
 }
@@ -111,15 +118,13 @@ bool Server::StartListening(){
         acceptor.listen();
         return true;
     }
-
     catch(const std::exception& Error){
-        std::cout<<"Listen Error: "<<Error.what()<<"\n";
+        std::cout << "Listen Error: " << Error.what() << "\n";
         return false;
     }
 }
 
 void Server::AcceptLoop(){
-
     while(true){
         try{
             tcp::socket Socket(ioContext);
@@ -127,27 +132,31 @@ void Server::AcceptLoop(){
             acceptor.accept(Socket);
 
             beast::flat_buffer Buffer;
-
             http::request<http::string_body> Request;
 
             http::read(Socket, Buffer, Request);
 
             http::response<http::string_body> Response;
-
             Response = router.HandleRequest(Request);
 
             http::write(Socket, Response);
 
             beast::error_code ErrorCode;
-
             Socket.shutdown(
                 tcp::socket::shutdown_send,
                 ErrorCode
             );
         }
-
         catch(const std::exception& Error){
-            std::cout<<"Accept Loop Error: "<<Error.what()<<"\n";
+            std::cout << "Accept Loop Error: " << Error.what() << "\n";
         }
     }
+}
+
+ConnectionManager& Server::GetConnectionManager(){
+    return connectionManager;
+}
+
+SessionManager& Server::GetSessionManager(){
+    return sessionManager;
 }
