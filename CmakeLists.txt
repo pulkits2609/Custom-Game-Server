@@ -77,6 +77,7 @@ set(SOURCES
     src/network/serverEventDispatcher.cpp
     src/network/presenceService.cpp
     src/network/realtimeAuthService.cpp
+    src/network/heartbeatService.cpp
 
     # Lobby System
     src/lobby/lobby.cpp

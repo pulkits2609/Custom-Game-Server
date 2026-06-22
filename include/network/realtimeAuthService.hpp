@@ -2,20 +2,22 @@
 
 #include "clientConnection.hpp"
 #include "connectionManager.hpp"
+#include "heartbeatService.hpp"
 #include "presenceService.hpp"
-#include "serverEventDispatcher.hpp"
 #include "../session/sessionManager.hpp"
 
 #include <boost/json.hpp>
 #include <memory>
 #include <string>
 
+class ServerEventDispatcher;
+
 class RealtimeAuthService{
 private:
     ConnectionManager& connectionManager;
     SessionManager& sessionManager;
     PresenceService& presenceService;
-    ServerEventDispatcher& eventDispatcher;
+    HeartbeatService& heartbeatService;
 
     static std::string ExtractToken(
         const boost::json::object& body
@@ -26,7 +28,7 @@ public:
         ConnectionManager& connectionManager,
         SessionManager& sessionManager,
         PresenceService& presenceService,
-        ServerEventDispatcher& eventDispatcher
+        HeartbeatService& heartbeatService
     );
 
     bool HandleMessage(

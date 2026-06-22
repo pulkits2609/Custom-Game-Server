@@ -11,12 +11,12 @@ RealtimeAuthService::RealtimeAuthService(
     ConnectionManager& connectionManager,
     SessionManager& sessionManager,
     PresenceService& presenceService,
-    ServerEventDispatcher& eventDispatcher
+    HeartbeatService& heartbeatService
 )
     : connectionManager(connectionManager),
       sessionManager(sessionManager),
       presenceService(presenceService),
-      eventDispatcher(eventDispatcher)
+      heartbeatService(heartbeatService)
 {
 }
 
@@ -124,6 +124,15 @@ bool RealtimeAuthService::HandleMessage(
         }
 
         if(
+            presenceService.IsOnline(Session->GetUsername())
+        ){
+            connection->Send(
+                Message::BuildEvent("AuthenticationFailed")
+            );
+            return true;
+        }
+
+        if(
             !connectionManager.AuthenticateConnection(
                 TokenString,
                 Session->GetUsername(),
@@ -141,27 +150,30 @@ bool RealtimeAuthService::HandleMessage(
             connection
         );
 
+        heartbeatService.RegisterPlayer(
+            Session->GetUsername(),
+            connection
+        );
+
         if(Transition == PresenceService::PresenceTransition::NewConnection){
-            eventDispatcher.NotifyPlayerConnected(
-                Session->GetUsername()
+            connection->Send(
+                Message::BuildEvent(
+                    "Authenticated"
+                )
             );
         }
         else if(Transition == PresenceService::PresenceTransition::Reconnected){
-            eventDispatcher.NotifyPlayerReconnected(
-                Session->GetUsername()
+            connection->Send(
+                Message::BuildEvent(
+                    "Authenticated"
+                )
             );
         }
-
-        json::object ResponseData;
-        ResponseData["username"] = Session->GetUsername();
-        ResponseData["playerName"] = Session->GetPlayerName();
-        ResponseData["sessionToken"] = TokenString;
-        ResponseData["reconnected"] =
-            (Transition == PresenceService::PresenceTransition::Reconnected);
-
-        connection->Send(
-            Message::BuildEvent("Authenticated", ResponseData)
-        );
+        else{
+            connection->Send(
+                Message::BuildEvent("AuthenticationFailed")
+            );
+        }
 
         return true;
     }

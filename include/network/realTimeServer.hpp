@@ -2,8 +2,9 @@
 
 #include "clientConnection.hpp"
 #include "connectionManager.hpp"
-#include "realtimeAuthService.hpp"
+#include "heartbeatService.hpp"
 #include "presenceService.hpp"
+#include "realtimeAuthService.hpp"
 #include "serverEventDispatcher.hpp"
 #include "../session/sessionManager.hpp"
 
@@ -25,6 +26,7 @@ private:
     ServerEventDispatcher& eventDispatcher;
 
     PresenceService presenceService;
+    HeartbeatService heartbeatService;
     RealtimeAuthService authService;
 
     void HandleIncomingMessage(

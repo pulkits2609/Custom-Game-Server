@@ -5,23 +5,24 @@
 RealtimeServer::RealtimeServer(
     ConnectionManager& connectionManager,
     SessionManager& sessionManager,
-    ServerEventDispatcher& dispatcher
+    ServerEventDispatcher& eventDispatcher
 )
     : acceptor(ioContext),
       connectionManager(connectionManager),
       sessionManager(sessionManager),
-      eventDispatcher(dispatcher),
-        presenceService(
-            [this](const std::string& username)
-            {
-                eventDispatcher.NotifyPlayerTimedOut(username);
-            }
-        ),
+      eventDispatcher(eventDispatcher),
+      presenceService(
+          [this](const std::string& username)
+          {
+              this->eventDispatcher.NotifyPlayerTimedOut(username);
+          }
+      ),
+      heartbeatService(connectionManager),
       authService(
           connectionManager,
           sessionManager,
           presenceService,
-          eventDispatcher
+          heartbeatService
       )
 {
 }
@@ -63,7 +64,11 @@ void RealtimeServer::HandleIncomingMessage(
     const std::shared_ptr<ClientConnection>& connection,
     const std::string& message
 ){
-    authService.HandleMessage(connection, message);
+    if(authService.HandleMessage(connection, message)){
+        return;
+    }
+
+    heartbeatService.HandleMessage(connection, message);
 }
 
 void RealtimeServer::AcceptLoop(){
@@ -94,6 +99,7 @@ void RealtimeServer::AcceptLoop(){
                     const std::string Username = Conn->GetUsername();
 
                     if(!Username.empty()){
+                        heartbeatService.UnregisterPlayer(Username);
                         presenceService.MarkOffline(Username);
                         eventDispatcher.NotifyPlayerDisconnected(Username);
                     }
