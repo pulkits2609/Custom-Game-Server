@@ -2,6 +2,8 @@
 
 #include "clientConnection.hpp"
 #include "connectionManager.hpp"
+#include "presenceService.hpp"
+#include "serverEventDispatcher.hpp"
 #include "../session/sessionManager.hpp"
 
 #include <boost/json.hpp>
@@ -12,15 +14,19 @@ class RealtimeAuthService{
 private:
     ConnectionManager& connectionManager;
     SessionManager& sessionManager;
+    PresenceService& presenceService;
+    ServerEventDispatcher& eventDispatcher;
 
     static std::string ExtractToken(
         const boost::json::object& body
     );
 
 public:
-    explicit RealtimeAuthService(
+    RealtimeAuthService(
         ConnectionManager& connectionManager,
-        SessionManager& sessionManager
+        SessionManager& sessionManager,
+        PresenceService& presenceService,
+        ServerEventDispatcher& eventDispatcher
     );
 
     bool HandleMessage(

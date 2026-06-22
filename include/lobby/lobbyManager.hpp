@@ -22,7 +22,12 @@ class LobbyManager{
             int maxPlayers
         );
 
+        std::shared_ptr<Lobby> FetchLobbyByMember(
+            const std::string& username
+        ) const;
+
         std::shared_ptr<Lobby> FetchLobby(const boost::uuids::uuid& lobbyId);
+
         bool DestroyLobby(
             const boost::uuids::uuid& lobbyId
         );

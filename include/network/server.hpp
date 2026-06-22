@@ -45,4 +45,5 @@ public:
 
     ConnectionManager& GetConnectionManager();
     SessionManager& GetSessionManager();
+    ServerEventDispatcher& GetEventDispatcher();
 };

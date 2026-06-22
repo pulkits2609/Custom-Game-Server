@@ -3,6 +3,8 @@
 #include "clientConnection.hpp"
 #include "connectionManager.hpp"
 #include "realtimeAuthService.hpp"
+#include "presenceService.hpp"
+#include "serverEventDispatcher.hpp"
 #include "../session/sessionManager.hpp"
 
 #include <boost/asio.hpp>
@@ -20,6 +22,9 @@ private:
 
     ConnectionManager& connectionManager;
     SessionManager& sessionManager;
+    ServerEventDispatcher& eventDispatcher;
+
+    PresenceService presenceService;
     RealtimeAuthService authService;
 
     void HandleIncomingMessage(
@@ -30,7 +35,8 @@ private:
 public:
     RealtimeServer(
         ConnectionManager& connectionManager,
-        SessionManager& sessionManager
+        SessionManager& sessionManager,
+        ServerEventDispatcher& eventDispatcher
     );
 
     bool Initialize();

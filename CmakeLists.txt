@@ -75,6 +75,8 @@ set(SOURCES
     src/network/message.cpp
     src/network/realtimeAuthService.cpp
     src/network/serverEventDispatcher.cpp
+    src/network/presenceService.cpp
+    src/network/realtimeAuthService.cpp
 
     # Lobby System
     src/lobby/lobby.cpp

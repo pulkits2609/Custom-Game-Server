@@ -36,3 +36,17 @@ std::vector<std::shared_ptr<Lobby>> LobbyManager::FetchAllLobbies() const{
 
     return AllLobbies;
 }
+
+std::shared_ptr<Lobby> LobbyManager::FetchLobbyByMember(
+    const std::string& username
+) const{
+    for(const auto& Pair : lobbies){
+        const auto& Lobby = Pair.second;
+
+        if(Lobby && Lobby->IsMember(username)){
+            return Lobby;
+        }
+    }
+
+    return nullptr;
+}

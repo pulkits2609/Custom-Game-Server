@@ -1,15 +1,28 @@
-#include "../../include/network/realtimeServer.hpp"
+#include "../../include/network/realTimeServer.hpp"
 
 #include <iostream>
 
 RealtimeServer::RealtimeServer(
     ConnectionManager& connectionManager,
-    SessionManager& sessionManager
+    SessionManager& sessionManager,
+    ServerEventDispatcher& dispatcher
 )
     : acceptor(ioContext),
       connectionManager(connectionManager),
       sessionManager(sessionManager),
-      authService(connectionManager, sessionManager)
+      eventDispatcher(dispatcher),
+        presenceService(
+            [this](const std::string& username)
+            {
+                eventDispatcher.NotifyPlayerTimedOut(username);
+            }
+        ),
+      authService(
+          connectionManager,
+          sessionManager,
+          presenceService,
+          eventDispatcher
+      )
 {
 }
 
@@ -78,6 +91,13 @@ void RealtimeServer::AcceptLoop(){
                 [this](
                     const std::shared_ptr<ClientConnection>& Conn
                 ){
+                    const std::string Username = Conn->GetUsername();
+
+                    if(!Username.empty()){
+                        presenceService.MarkOffline(Username);
+                        eventDispatcher.NotifyPlayerDisconnected(Username);
+                    }
+
                     connectionManager.RemoveConnection(
                         Conn->GetConnectionId()
                     );

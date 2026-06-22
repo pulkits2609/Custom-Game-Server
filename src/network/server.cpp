@@ -6,7 +6,7 @@ Server::Server()
       lobbyManager(),
       sessionManager(),
       connectionManager(),
-      eventDispatcher(connectionManager),
+      eventDispatcher(lobbyManager, connectionManager),
       authMiddleware(sessionManager),
       lobbyRoutes(lobbyManager, authMiddleware, eventDispatcher),
       sessionRoutes(sessionManager)
@@ -160,4 +160,8 @@ ConnectionManager& Server::GetConnectionManager(){
 
 SessionManager& Server::GetSessionManager(){
     return sessionManager;
+}
+
+ServerEventDispatcher& Server::GetEventDispatcher(){
+    return eventDispatcher;
 }

@@ -9,10 +9,14 @@ namespace json = boost::json;
 
 RealtimeAuthService::RealtimeAuthService(
     ConnectionManager& connectionManager,
-    SessionManager& sessionManager
+    SessionManager& sessionManager,
+    PresenceService& presenceService,
+    ServerEventDispatcher& eventDispatcher
 )
     : connectionManager(connectionManager),
-      sessionManager(sessionManager)
+      sessionManager(sessionManager),
+      presenceService(presenceService),
+      eventDispatcher(eventDispatcher)
 {
 }
 
@@ -70,7 +74,6 @@ bool RealtimeAuthService::HandleMessage(
         auto& Body = Parsed.as_object();
 
         auto EventIt = Body.find("event");
-
         if(
             EventIt == Body.end() ||
             !EventIt->value().is_string()
@@ -113,7 +116,6 @@ bool RealtimeAuthService::HandleMessage(
         }
 
         auto Session = sessionManager.ValidateToken(Token);
-
         if(!Session){
             connection->Send(
                 Message::BuildEvent("AuthenticationFailed")
@@ -134,10 +136,28 @@ bool RealtimeAuthService::HandleMessage(
             return true;
         }
 
+        auto Transition = presenceService.MarkOnline(
+            Session->GetUsername(),
+            connection
+        );
+
+        if(Transition == PresenceService::PresenceTransition::NewConnection){
+            eventDispatcher.NotifyPlayerConnected(
+                Session->GetUsername()
+            );
+        }
+        else if(Transition == PresenceService::PresenceTransition::Reconnected){
+            eventDispatcher.NotifyPlayerReconnected(
+                Session->GetUsername()
+            );
+        }
+
         json::object ResponseData;
         ResponseData["username"] = Session->GetUsername();
         ResponseData["playerName"] = Session->GetPlayerName();
         ResponseData["sessionToken"] = TokenString;
+        ResponseData["reconnected"] =
+            (Transition == PresenceService::PresenceTransition::Reconnected);
 
         connection->Send(
             Message::BuildEvent("Authenticated", ResponseData)

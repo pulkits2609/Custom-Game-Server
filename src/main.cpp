@@ -32,7 +32,8 @@ int main(int argc, char* argv[]){
 
         RealtimeServer StreamServer(
             HttpServer.GetConnectionManager(),
-            HttpServer.GetSessionManager()
+            HttpServer.GetSessionManager(),
+            HttpServer.GetEventDispatcher()
         );
 
         if(!StreamServer.Initialize()){
