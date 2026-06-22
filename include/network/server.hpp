@@ -10,6 +10,7 @@
 #include "../lobby/lobbyManager.hpp"
 #include "../middleware/authMiddleware.hpp"
 #include "connectionManager.hpp"
+#include "serverEventDispatcher.hpp"
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
@@ -27,6 +28,7 @@ private:
     LobbyManager lobbyManager;
     SessionManager sessionManager;
     ConnectionManager connectionManager;
+    ServerEventDispatcher eventDispatcher;
 
     AuthMiddleware authMiddleware;
 

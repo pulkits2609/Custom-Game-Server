@@ -6,8 +6,9 @@ Server::Server()
       lobbyManager(),
       sessionManager(),
       connectionManager(),
+      eventDispatcher(connectionManager),
       authMiddleware(sessionManager),
-      lobbyRoutes(lobbyManager, authMiddleware, connectionManager),
+      lobbyRoutes(lobbyManager, authMiddleware, eventDispatcher),
       sessionRoutes(sessionManager)
 {
     router.RegisterRoute(

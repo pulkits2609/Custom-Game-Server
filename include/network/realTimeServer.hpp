@@ -2,8 +2,8 @@
 
 #include "clientConnection.hpp"
 #include "connectionManager.hpp"
+#include "realtimeAuthService.hpp"
 #include "../session/sessionManager.hpp"
-#include "message.hpp"
 
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
@@ -20,6 +20,7 @@ private:
 
     ConnectionManager& connectionManager;
     SessionManager& sessionManager;
+    RealtimeAuthService authService;
 
     void HandleIncomingMessage(
         const std::shared_ptr<ClientConnection>& connection,

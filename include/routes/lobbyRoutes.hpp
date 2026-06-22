@@ -2,7 +2,7 @@
 
 #include "../lobby/lobbyManager.hpp"
 #include "../middleware/authMiddleware.hpp"
-#include "../network/connectionManager.hpp"
+#include "../network/serverEventDispatcher.hpp"
 #include "../router/router.hpp"
 
 #include <boost/beast/http.hpp>
@@ -13,13 +13,13 @@ class LobbyRoutes{
 private:
     LobbyManager& manager;
     AuthMiddleware& authMiddleware;
-    ConnectionManager& connectionManager;
+    ServerEventDispatcher& eventDispatcher;
 
 public:
     explicit LobbyRoutes(
         LobbyManager& manager,
         AuthMiddleware& authMiddleware,
-        ConnectionManager& connectionManager
+        ServerEventDispatcher& eventDispatcher
     );
 
     http::response<http::string_body> CreateLobby(

@@ -73,6 +73,8 @@ set(SOURCES
     src/network/clientConnection.cpp
     src/network/connectionManager.cpp
     src/network/message.cpp
+    src/network/realtimeAuthService.cpp
+    src/network/serverEventDispatcher.cpp
 
     # Lobby System
     src/lobby/lobby.cpp

@@ -1,5 +1,4 @@
 #include "../../include/routes/lobbyRoutes.hpp"
-#include "../../include/network/message.hpp"
 
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/string_generator.hpp>
@@ -12,11 +11,11 @@ namespace json = boost::json;
 LobbyRoutes::LobbyRoutes(
     LobbyManager& manager,
     AuthMiddleware& authMiddleware,
-    ConnectionManager& connectionManager
+    ServerEventDispatcher& eventDispatcher
 )
     : manager(manager),
       authMiddleware(authMiddleware),
-      connectionManager(connectionManager)
+      eventDispatcher(eventDispatcher)
 {
 }
 
@@ -51,22 +50,11 @@ http::response<http::string_body> LobbyRoutes::CreateLobby(
         MaxPlayers
     );
 
+    eventDispatcher.NotifyLobbyCreated(Lobby);
+
     json::object ResponseBody;
     ResponseBody["message"] = "Lobby Created";
     ResponseBody["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
-
-    json::object CreatedEventData;
-    CreatedEventData["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
-    CreatedEventData["lobbyName"] = LobbyName;
-
-    connectionManager.SendToUsername(
-        HostID,
-        Message::BuildEvent("LobbyCreated", CreatedEventData)
-    );
-
-    connectionManager.Broadcast(
-        Message::BuildEvent("LobbyListUpdated")
-    );
 
     http::response<http::string_body> Response{
         http::status::ok,
@@ -266,22 +254,9 @@ http::response<http::string_body> LobbyRoutes::JoinLobby(
         return Response;
     }
 
-    json::object JoinedEventData;
-    JoinedEventData["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
-    JoinedEventData["username"] = Username;
-
-    connectionManager.SendToUsername(
-        Username,
-        Message::BuildEvent("JoinedLobby", JoinedEventData)
-    );
-
-    connectionManager.BroadcastToUsers(
-        Lobby->GetMembers(),
-        Message::BuildEvent("LobbyUpdated", JoinedEventData)
-    );
-
-    connectionManager.Broadcast(
-        Message::BuildEvent("LobbyListUpdated")
+    eventDispatcher.NotifyLobbyJoined(
+        Lobby,
+        Username
     );
 
     json::object ResponseBody;
@@ -374,10 +349,6 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
         return Response;
     }
 
-    json::object LeftPayload;
-    LeftPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
-    LeftPayload["username"] = Username;
-
     if(Lobby->IsHost(Username)){
         auto Members = Lobby->GetMembers();
 
@@ -394,13 +365,9 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
             return Response;
         }
 
-        connectionManager.BroadcastToUsers(
-            Members,
-            Message::BuildEvent("LobbyDestroyed", LeftPayload)
-        );
-
-        connectionManager.Broadcast(
-            Message::BuildEvent("LobbyListUpdated")
+        eventDispatcher.NotifyLobbyDestroyed(
+            Lobby,
+            Members
         );
 
         json::object ResponseBody;
@@ -417,11 +384,6 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
         return Response;
     }
 
-    connectionManager.SendToUsername(
-        Username,
-        Message::BuildEvent("LeftLobby", LeftPayload)
-    );
-
     if(!Lobby->RemoveMember(Username)){
         http::response<http::string_body> Response{
             http::status::conflict,
@@ -433,13 +395,9 @@ http::response<http::string_body> LobbyRoutes::LeaveLobby(
         return Response;
     }
 
-    connectionManager.BroadcastToUsers(
-        Lobby->GetMembers(),
-        Message::BuildEvent("LobbyUpdated", LeftPayload)
-    );
-
-    connectionManager.Broadcast(
-        Message::BuildEvent("LobbyListUpdated")
+    eventDispatcher.NotifyLobbyLeft(
+        Lobby,
+        Username
     );
 
     json::object ResponseBody;
@@ -562,8 +520,6 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
     }
 
     auto Members = Lobby->GetMembers();
-    json::object DestroyPayload;
-    DestroyPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
 
     Lobby->ClearMembers();
 
@@ -578,13 +534,9 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
         return Response;
     }
 
-    connectionManager.BroadcastToUsers(
-        Members,
-        Message::BuildEvent("LobbyDestroyed", DestroyPayload)
-    );
-
-    connectionManager.Broadcast(
-        Message::BuildEvent("LobbyListUpdated")
+    eventDispatcher.NotifyLobbyDestroyed(
+        Lobby,
+        Members
     );
 
     json::object ResponseBody;
@@ -595,11 +547,7 @@ http::response<http::string_body> LobbyRoutes::DestroyLobby(
         Request.version()
     };
 
-    Response.set(
-        http::field::content_type,
-        "application/json"
-    );
-
+    Response.set(http::field::content_type, "application/json");
     Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
     return Response;
@@ -712,15 +660,6 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
         return Response;
     }
 
-    json::object KickPayload;
-    KickPayload["lobbyID"] = boost::uuids::to_string(Lobby->GetLobbyId());
-    KickPayload["username"] = TargetUsername;
-
-    connectionManager.SendToUsername(
-        TargetUsername,
-        Message::BuildEvent("KickedFromLobby", KickPayload)
-    );
-
     if(!Lobby->RemoveMember(TargetUsername)){
         http::response<http::string_body> Response{
             http::status::internal_server_error,
@@ -732,13 +671,9 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
         return Response;
     }
 
-    connectionManager.BroadcastToUsers(
-        Lobby->GetMembers(),
-        Message::BuildEvent("LobbyUpdated", KickPayload)
-    );
-
-    connectionManager.Broadcast(
-        Message::BuildEvent("LobbyListUpdated")
+    eventDispatcher.NotifyPlayerKicked(
+        Lobby,
+        TargetUsername
     );
 
     json::object ResponseBody;
@@ -751,11 +686,7 @@ http::response<http::string_body> LobbyRoutes::KickPlayer(
         Request.version()
     };
 
-    Response.set(
-        http::field::content_type,
-        "application/json"
-    );
-
+    Response.set(http::field::content_type, "application/json");
     Response.body() = json::serialize(ResponseBody);
     Response.prepare_payload();
     return Response;
